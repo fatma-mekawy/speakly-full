@@ -3,19 +3,7 @@
 import { Language, LANGUAGES } from "@/types";
 import { CloudVoice } from "@/lib/api";
 import CloudVoiceSelector from "./CloudVoiceSelector";
-
-const LANGUAGE_FLAGS: Record<Language, string> = {
-  Spanish: "🇪🇸",
-  French: "🇫🇷",
-  German: "🇩🇪",
-  Italian: "🇮🇹",
-  Portuguese: "🇧🇷",
-  Japanese: "🇯🇵",
-  Korean: "🇰🇷",
-  Arabic: "🇸🇦",
-  Chinese: "🇨🇳",
-  English: "🇺🇸",
-};
+import Flag from "./Flag";
 
 interface Props {
   value: Language | null;
@@ -54,7 +42,7 @@ export default function NewsLanguagePicker({
                   : "border-gray-200 hover:border-blue-300 hover:bg-blue-50/40 text-gray-700"
               }`}
             >
-              <span className="text-lg">{LANGUAGE_FLAGS[lang]}</span>
+              <Flag language={lang} size={20} />
               <span>{lang}</span>
             </button>
           );

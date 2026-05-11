@@ -6,19 +6,8 @@ import { Language, LANGUAGES, LANGUAGE_CODES } from "@/types";
 import { translateText, fetchCloudVoices, speakCloud, CloudVoice } from "@/lib/api";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import CloudVoiceSelector from "@/components/CloudVoiceSelector";
-
-const LANGUAGE_FLAGS: Record<Language, string> = {
-  Spanish: "🇪🇸",
-  French: "🇫🇷",
-  German: "🇩🇪",
-  Italian: "🇮🇹",
-  Portuguese: "🇧🇷",
-  Japanese: "🇯🇵",
-  Korean: "🇰🇷",
-  Arabic: "🇸🇦",
-  Chinese: "🇨🇳",
-  English: "🇺🇸",
-};
+import SpeechCorrectionCard from "@/components/SpeechCorrectionCard";
+import Flag from "@/components/Flag";
 
 export default function TranslatePage() {
   const [fromLang, setFromLang] = useState<Language>("English");
@@ -31,6 +20,7 @@ export default function TranslatePage() {
   >([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPlayingCorrection, setIsPlayingCorrection] = useState(false);
 
   const speech = useSpeechRecognition();
 
@@ -154,17 +144,20 @@ export default function TranslatePage() {
       <div className="max-w-3xl mx-auto px-4 py-8">
         {/* Language selectors */}
         <div className="flex items-center justify-center gap-4 mb-6">
-          <select
-            value={fromLang}
-            onChange={(e) => setFromLang(e.target.value as Language)}
-            className="border border-gray-300 rounded-lg px-4 py-2 text-sm bg-white focus:outline-none focus:border-blue-400"
-          >
-            {LANGUAGES.map((lang) => (
-              <option key={lang} value={lang}>
-                {LANGUAGE_FLAGS[lang]} {lang}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-1.5 bg-white">
+            <Flag language={fromLang} size={22} />
+            <select
+              value={fromLang}
+              onChange={(e) => setFromLang(e.target.value as Language)}
+              className="text-sm bg-transparent focus:outline-none"
+            >
+              {LANGUAGES.map((lang) => (
+                <option key={lang} value={lang}>
+                  {lang}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <button
             onClick={handleSwapLanguages}
@@ -185,17 +178,20 @@ export default function TranslatePage() {
             </svg>
           </button>
 
-          <select
-            value={toLang}
-            onChange={(e) => setToLang(e.target.value as Language)}
-            className="border border-gray-300 rounded-lg px-4 py-2 text-sm bg-white focus:outline-none focus:border-blue-400"
-          >
-            {LANGUAGES.map((lang) => (
-              <option key={lang} value={lang}>
-                {LANGUAGE_FLAGS[lang]} {lang}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-1.5 bg-white">
+            <Flag language={toLang} size={22} />
+            <select
+              value={toLang}
+              onChange={(e) => setToLang(e.target.value as Language)}
+              className="text-sm bg-transparent focus:outline-none"
+            >
+              {LANGUAGES.map((lang) => (
+                <option key={lang} value={lang}>
+                  {lang}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Translation boxes */}
@@ -210,6 +206,37 @@ export default function TranslatePage() {
             />
             {speech.interimTranscript && (
               <p className="text-xs text-gray-400 italic px-1">{speech.interimTranscript}</p>
+            )}
+            {speech.isCheckingGrammar && (
+              <p className="text-xs text-gray-400 italic px-1 mt-1">
+                Checking your {fromLang}…
+              </p>
+            )}
+            {speech.speechCorrection && (
+              <div className="mt-2">
+                <SpeechCorrectionCard
+                  correction={speech.speechCorrection}
+                  onUseCorrected={(corrected) => {
+                    setInputText(corrected);
+                    speech.clearSpeechCorrection();
+                  }}
+                  onDismiss={speech.clearSpeechCorrection}
+                  isPlayingListen={isPlayingCorrection}
+                  onListen={async () => {
+                    if (!speech.speechCorrection) return;
+                    setIsPlayingCorrection(true);
+                    try {
+                      await handleSpeak(
+                        speech.speechCorrection.corrected,
+                        fromVoice,
+                        speech.speechCorrection.language
+                      );
+                    } finally {
+                      setIsPlayingCorrection(false);
+                    }
+                  }}
+                />
+              </div>
             )}
             <div className="flex items-center justify-between border-t border-gray-100 pt-3 mt-2">
               <div className="flex gap-2">

@@ -5,3 +5,4 @@ pydantic-settings==2.13.1
 python-dotenv==1.2.2
 edge-tts==7.2.7
 ddgs>=9.0.0
+python-multipart>=0.0.20

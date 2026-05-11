@@ -46,6 +46,20 @@ export const LANGUAGE_CODES: Record<Language, string> = {
   English: "en-US",
 };
 
+// ISO 3166-1 alpha-2 country codes (lowercase) — used for flag images
+export const LANGUAGE_COUNTRY_CODES: Record<Language, string> = {
+  Spanish: "es",
+  French: "fr",
+  German: "de",
+  Italian: "it",
+  Portuguese: "br",
+  Japanese: "jp",
+  Korean: "kr",
+  Arabic: "sa",
+  Chinese: "cn",
+  English: "us",
+};
+
 export const LANGUAGES: Language[] = [
   "Spanish",
   "French",

@@ -91,3 +91,14 @@ class NewsTranslateBatchRequest(BaseModel):
 
 class NewsTranslateBatchResponse(BaseModel):
     translations: list[NewsTranslateResponse]
+
+
+class GrammarCheckRequest(BaseModel):
+    text: str
+    language: str
+
+
+class GrammarCheckResponse(BaseModel):
+    original: str
+    corrected: str
+    corrections: list[Correction] = []

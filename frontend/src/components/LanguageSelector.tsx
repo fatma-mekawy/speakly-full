@@ -3,19 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Language, LANGUAGES } from "@/types";
-
-const LANGUAGE_FLAGS: Record<Language, string> = {
-  Spanish: "🇪🇸",
-  French: "🇫🇷",
-  German: "🇩🇪",
-  Italian: "🇮🇹",
-  Portuguese: "🇧🇷",
-  Japanese: "🇯🇵",
-  Korean: "🇰🇷",
-  Arabic: "🇸🇦",
-  Chinese: "🇨🇳",
-  English: "🇺🇸",
-};
+import Flag from "./Flag";
 
 interface Props {
   onSelect: (nativeLanguage: Language, targetLanguage: Language) => void;
@@ -84,7 +72,7 @@ export default function LanguageSelector({ onSelect }: Props) {
                     onClick={() => handleNativeSelect(lang)}
                     className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-left"
                   >
-                    <span className="text-2xl">{LANGUAGE_FLAGS[lang]}</span>
+                    <Flag language={lang} size={28} />
                     <span className="font-medium text-gray-700">{lang}</span>
                   </button>
                 ))}
@@ -99,10 +87,11 @@ export default function LanguageSelector({ onSelect }: Props) {
                 >
                   ← Back
                 </button>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 flex items-center gap-1.5">
                   I speak{" "}
-                  <span className="font-medium text-blue-600">
-                    {LANGUAGE_FLAGS[nativeLang!]} {nativeLang}
+                  <span className="font-medium text-blue-600 inline-flex items-center gap-1.5">
+                    <Flag language={nativeLang!} size={20} />
+                    {nativeLang}
                   </span>
                 </p>
               </div>
@@ -117,7 +106,7 @@ export default function LanguageSelector({ onSelect }: Props) {
                     onClick={() => handleTargetSelect(lang)}
                     className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 hover:border-green-400 hover:bg-green-50 transition-all text-left"
                   >
-                    <span className="text-2xl">{LANGUAGE_FLAGS[lang]}</span>
+                    <Flag language={lang} size={28} />
                     <span className="font-medium text-gray-700">{lang}</span>
                   </button>
                 ))}

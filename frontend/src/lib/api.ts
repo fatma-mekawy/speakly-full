@@ -147,6 +147,43 @@ export async function translateNewsArticlesBatch(
   return response.json();
 }
 
+export interface GrammarCheckResult {
+  original: string;
+  corrected: string;
+  corrections: Array<{ original: string; corrected: string; explanation: string }>;
+}
+
+export async function checkGrammar(
+  text: string,
+  language: string
+): Promise<GrammarCheckResult> {
+  const response = await fetch(`${API_URL}/api/check-grammar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, language }),
+  });
+  if (!response.ok) throw new Error(`Grammar check error: ${response.status}`);
+  return response.json();
+}
+
+export async function transcribeAudio(audio: Blob, languageCode?: string): Promise<string> {
+  const form = new FormData();
+  const ext = audio.type.includes("mp4") ? "mp4" : "webm";
+  form.append("audio", audio, `speech.${ext}`);
+  if (languageCode) form.append("language", languageCode);
+
+  const response = await fetch(`${API_URL}/api/transcribe`, {
+    method: "POST",
+    body: form,
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`Transcribe error ${response.status}: ${text}`);
+  }
+  const data = await response.json();
+  return (data.text || "").trim();
+}
+
 export async function speakCloud(text: string, voice: string): Promise<void> {
   const response = await fetch(`${API_URL}/api/tts`, {
     method: "POST",

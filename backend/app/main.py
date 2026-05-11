@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
@@ -7,9 +7,11 @@ from app.models import (
     ChatRequest, ChatResponse, TranslateRequest, TranslateResponse,
     NewsResponse, NewsTranslateRequest, NewsTranslateResponse,
     NewsTranslateBatchRequest, NewsTranslateBatchResponse,
+    GrammarCheckRequest, GrammarCheckResponse,
 )
 from app.services.llm_service import (
     get_response, translate_text, translate_news_article, translate_news_articles,
+    transcribe_audio, check_grammar,
 )
 from app.services.tts_service import get_voices, synthesize_speech
 from app.services.search_service import search_news
@@ -59,6 +61,30 @@ async def news_translate(request: NewsTranslateRequest):
 @app.post("/api/news/translate-batch", response_model=NewsTranslateBatchResponse)
 async def news_translate_batch(request: NewsTranslateBatchRequest):
     return await translate_news_articles(request)
+
+
+@app.post("/api/check-grammar", response_model=GrammarCheckResponse)
+async def check_grammar_endpoint(request: GrammarCheckRequest):
+    return await check_grammar(request)
+
+
+@app.post("/api/transcribe")
+async def transcribe(
+    audio: UploadFile = File(...),
+    language: str = Form(""),
+):
+    audio_bytes = await audio.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Empty audio upload")
+    try:
+        text = await transcribe_audio(
+            audio_bytes,
+            filename=audio.filename or "audio.webm",
+            language=language or None,
+        )
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Transcription failed: {e}")
+    return {"text": text}
 
 
 @app.post("/api/tts")

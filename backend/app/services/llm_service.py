@@ -12,6 +12,7 @@ from app.models import (
     TranslateRequest, TranslateResponse, TranslateCorrection,
     NewsTranslateRequest, NewsTranslateResponse,
     NewsTranslateBatchRequest, NewsTranslateBatchResponse,
+    GrammarCheckRequest, GrammarCheckResponse, Correction,
 )
 from app.prompts import build_system_prompt
 from app.services.search_service import search_web, search_news
@@ -64,12 +65,98 @@ def _parse_json_response(text: str) -> dict:
     return json.loads(cleaned)
 
 
-async def _call_llm(messages: list[dict], max_tokens: int = 1024) -> str:
-    response = await client.chat.completions.create(
-        model="openai/gpt-oss-120b",
-        max_tokens=max_tokens,
-        messages=messages,
-    )
+async def check_grammar(request: GrammarCheckRequest) -> GrammarCheckResponse:
+    """Check text for grammar/spelling/word-choice errors in the given language."""
+    text = (request.text or "").strip()
+    if not text:
+        return GrammarCheckResponse(original=text, corrected=text, corrections=[])
+
+    messages = [
+        {
+            "role": "system",
+            "content": f"""You are a {request.language} language teacher. Check the user's text for grammar, spelling, and word-choice errors in {request.language}.
+
+Respond with ONLY valid JSON in this exact format (no markdown, no code fences):
+{{
+  "corrected": "the fully corrected version of the text in {request.language}",
+  "corrections": [
+    {{
+      "original": "the wrong part",
+      "corrected": "the correct form",
+      "explanation": "brief explanation in {request.language} of why it was wrong"
+    }}
+  ]
+}}
+
+If the text has no errors, return an empty corrections array and set corrected to the input unchanged.
+Be lenient with informal speech and minor punctuation — only flag real mistakes a learner should know about.""",
+        },
+        {"role": "user", "content": text},
+    ]
+
+    response_text = await _call_llm(messages, max_tokens=1500, json_mode=True)
+
+    try:
+        data = _parse_json_response(response_text)
+        corrected = (data.get("corrected") or text).strip()
+        raw_corrections = data.get("corrections") or []
+        corrections = [
+            Correction(
+                original=(c.get("original") or "").strip(),
+                corrected=(c.get("corrected") or "").strip(),
+                explanation=(c.get("explanation") or "").strip(),
+            )
+            for c in raw_corrections
+            if c.get("original") and c.get("corrected")
+        ]
+        return GrammarCheckResponse(original=text, corrected=corrected, corrections=corrections)
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        logger.warning("Grammar check JSON parse failed: %s", e)
+        return GrammarCheckResponse(original=text, corrected=text, corrections=[])
+
+
+async def transcribe_audio(
+    audio_bytes: bytes,
+    filename: str = "audio.webm",
+    language: str | None = None,
+) -> str:
+    """Transcribe audio using Groq Whisper. Returns plain text."""
+    kwargs = {
+        "file": (filename, audio_bytes),
+        "model": settings.whisper_model,
+        "response_format": "text",
+    }
+    if language:
+        kwargs["language"] = language
+
+    try:
+        response = await client.audio.transcriptions.create(**kwargs)
+    except Exception as e:  # noqa: BLE001
+        logger.error("Whisper transcription failed: %s", e)
+        raise
+
+    # response_format="text" returns a plain string in some SDK versions,
+    # an object with .text in others.
+    if isinstance(response, str):
+        return response.strip()
+    return getattr(response, "text", "").strip()
+
+
+async def _call_llm(
+    messages: list[dict],
+    max_tokens: int = 1024,
+    json_mode: bool = False,
+) -> str:
+    kwargs: dict = {
+        "model": settings.chat_model,
+        "max_tokens": max_tokens,
+        "messages": messages,
+    }
+    if json_mode:
+        # Forces the model to emit a single valid JSON object — eliminates
+        # truncation / plain-text replies that break json.loads.
+        kwargs["response_format"] = {"type": "json_object"}
+    response = await client.chat.completions.create(**kwargs)
     return response.choices[0].message.content or ""
 
 
@@ -96,7 +183,7 @@ async def get_response(request: ChatRequest) -> ChatResponse:
     messages.append({"role": "user", "content": request.message})
 
     # Step 2: First LLM call
-    response_text = await _call_llm(messages)
+    response_text = await _call_llm(messages, max_tokens=1500, json_mode=True)
 
     parsed = None
     try:
@@ -118,7 +205,7 @@ async def get_response(request: ChatRequest) -> ChatResponse:
             )
             # Rebuild messages with web context
             messages[0] = {"role": "system", "content": system_prompt + web_context}
-            response_text = await _call_llm(messages)
+            response_text = await _call_llm(messages, max_tokens=1500, json_mode=True)
 
             try:
                 parsed = _parse_json_response(response_text)
@@ -178,7 +265,7 @@ Include one entry for every article, in order. Keep the index field matching the
     ]
 
     # CJK/Arabic outputs eat tokens fast — give the batch enough room.
-    response_text = await _call_llm(messages, max_tokens=3000)
+    response_text = await _call_llm(messages, max_tokens=3000, json_mode=True)
 
     fallback = [NewsTranslateResponse(translated_title="", summary="") for _ in request.articles]
 
@@ -222,7 +309,7 @@ Respond with ONLY valid JSON in this exact format (no markdown, no code fences):
         },
     ]
 
-    response_text = await _call_llm(messages)
+    response_text = await _call_llm(messages, max_tokens=800, json_mode=True)
 
     try:
         data = _parse_json_response(response_text)
@@ -265,7 +352,7 @@ If there are no errors, return an empty corrections array and set corrected_text
         {"role": "user", "content": request.text},
     ]
 
-    response_text = await _call_llm(messages)
+    response_text = await _call_llm(messages, max_tokens=1500, json_mode=True)
 
     try:
         data = _parse_json_response(response_text)
