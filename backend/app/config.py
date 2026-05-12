@@ -8,7 +8,9 @@ class Settings(BaseSettings):
     chat_model: str = "openai/gpt-oss-120b"
     # Groq Whisper variant used for /api/transcribe.
     whisper_model: str = "whisper-large-v3-turbo"
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["http://localhost:3000",
+    "https://speakly-full-production.up.railway.app",
+    ]
 
     model_config = {"env_file": ".env"}
 
