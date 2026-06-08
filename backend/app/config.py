@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # Groq Whisper variant used for /api/transcribe.
     whisper_model: str = "whisper-large-v3-turbo"
     cors_origins: list[str] = ["http://localhost:3000",
-         "https://speakly-full-production.up.railway.app",]
+                               "https://speakly-full-kdv4x4962-fatimaabdelmonemmekawy-3966s-projects.vercel.app"]
 
     model_config = {"env_file": ".env"}
 
